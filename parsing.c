@@ -5,110 +5,116 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: antbonin <antbonin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/21 18:04:48 by antbonin          #+#    #+#             */
-/*   Updated: 2024/12/21 18:59:20 by antbonin         ###   ########.fr       */
+/*   Created: 2025/01/11 18:35:36 by antbonin          #+#    #+#             */
+/*   Updated: 2025/01/11 18:49:05 by antbonin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "so_long.h"
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <unistd.h>
+#include "./libft/libft.h"
+#include <stdlib.h>
+#include "stdio.h"
 
-ssize_t	find_door(char **tab, char target)
+char	*extract_substring(char *str)
 {
-	size_t	y;
-	size_t	x;
+	size_t	start;
+	size_t	end;
+	size_t	len;
+	char	*substring;
 
-	y = 0;
-	while (tab[y] != NULL)
-	{
-		x = 0;
-		while (tab[y][x] != '\0')
-		{
-			if (tab[y][x] == target)
-			{
-				return (1);
-			}
-			x++;
-		}
-		y++;
-	}
-	return (-1);
+	start = 0;
+	end = ft_strlen(str) - 1;
+	while (str[start] && str[start] != '1')
+		start++;
+	while (end > start && str[end] != '1')
+		end--;
+	if (str[start] != '1' || str[end] != '1')
+		return (NULL);
+	len = end - start + 2;
+	substring = (char *)malloc(sizeof(char) * (len + 1));
+	if (!substring)
+		return (NULL);
+	ft_strlcpy(substring, str + start, len);
+	substring[len] = '\0';
+	free(str);
+	return (substring);
 }
 
-ssize_t	find_character_x(char **tab, char target)
+char	*check_invalid(char *str)
 {
-	size_t	y;
-	size_t	x;
+	size_t	len;
+	char	*filtered_str;
+	size_t	j;
+	size_t	i;
 
-	y = 0;
-	while (tab[y] != NULL)
+	len = ft_strlen(str);
+	i = 0;
+	filtered_str = (char *)malloc(len + 1);
+	if (!filtered_str)
+		return (NULL);
+	j = 0;
+	while (i < len)
 	{
-		x = 0;
-		while (tab[y][x] != '\0')
-		{
-			if (tab[y][x] == target)
-			{
-				return (x);
-			}
-			x++;
-		}
-		y++;
+		if (!ft_strchr(INVALID, str[i]))
+			filtered_str[j++] = str[i];
+		i++;
 	}
-	return (-1);
+	filtered_str[j] = '\0';
+	free(str);
+	return (filtered_str);
 }
 
-ssize_t	find_character_y(char **tab, char target)
+ssize_t	process_lines(char **tab, size_t lines)
 {
-	size_t	y;
-	size_t	x;
+	int	y;
+	int	count;
+	int	x;
 
 	y = 0;
-	while (tab[y] != NULL)
+	count = 0;
+	while (tab[y] != 0)
 	{
+		tab[y] = extract_substring(tab[y]);
+		tab[y] = check_invalid(tab[y]);
 		x = 0;
-		while (tab[y][x] != '\0')
+		while (tab[y][x])
 		{
-			if (tab[y][x] == target)
-			{
-				return (y);
-			}
+			if (tab[y][x] == '1')
+				count++;
 			x++;
 		}
+		if ((y > 0 && y < lines - 1) && count != 2)
+			return (-1);
+		count = 0;
 		y++;
 	}
-	return (-1);
+	return (0);
 }
 
-bool	has_edibles(char **tab)
+ssize_t	check_mapping(char **tab, size_t lines)
 {
 	size_t	y;
-	size_t	x;
 
 	y = 0;
-	while (tab[y] != NULL)
+	while (tab[y] && y < lines)
 	{
-		x = 0;
-		while (tab[y][x] != '\0')
-		{
-			if (tab[y][x] == 'e')
-			{
-				return (true);
-			}
-			x++;
-		}
+		if (ft_strlen(tab[0]) != ft_strlen(tab[y]))
+			return (-1);
+		else if ((tab[y][0] == 0 && tab[y][ft_strlen(tab[y])] == 0))
+			return (-1);
 		y++;
 	}
-	return (false);
+	return (1);
 }
 
-ssize_t	my_scanf(const char *format, void *var)
+int	validate_map(char **tab, size_t lines, int fd)
 {
-	char	buffer[100];
-
-	if (read(0, buffer, 100) == -1)
-		return (-1);
-	return (sscanf(buffer, format, var));
+	if (process_lines(tab, lines) + check_mapping(tab, lines) < 0)
+	{
+		perror("Error invalid map");
+		free_tab(tab);
+		close(fd);
+		return (1);
+	}
+	return (0);
 }
